@@ -3,7 +3,7 @@ import inspect
 from typing import List, Dict
 
 from ex02.telecom import Command
-from ex02.geometry import Point, Segment
+from ex02.geometry import Point, Segment, Arc
 
 
 class RobotComponent:
@@ -124,7 +124,8 @@ class MotionController(RobotComponent):
     def compute_motions(self, positions):
         points = self.convert_in_points(positions)
         motions = self.convert_in_motions(points)
-        return motions
+        new_motions = self.optimize_motions(motions)
+        return new_motions
 
     def convert_in_motions(self, points):
         """
@@ -134,31 +135,47 @@ class MotionController(RobotComponent):
         """
         motions = []
         start = points[0]
-        current_move = None
         for p in points[1:]:
-            m = Move(start, p)
-            if current_move:
-                if m.vector.scalar_product(current_move.vector) < 1:
-                    ## reprendre ici
-            motions.append()
+            motions.append(Move(start, p))
             start = p
-            current_move = m
         return motions
+
+    def optimize_motions(self, motions):
+        new_motions = []
+        previous_move = None
+        for move in motions:
+            to_add = move
+            if previous_move:
+                if not previous_move.is_parallel_with(move):
+                    rotation = Rotation.new_from_move(previous_move, move)
+                    to_add = rotation
+            previous_move = move
+            new_motions.append(to_add)
+        return new_motions
+
 
     def convert_in_points(self, positions):
         return list([Point.new(xy) for xy in positions])
 
+
 class Move:
 
-    def __init__(self,start, end):
+    def __init__(self, start, end):
         self.start = start
         self.end = end
         self.length = Point.distance(start, end)
         self.vector = (end - start).normalize()
 
+    def is_parallel_with(self, other: 'Move'):
+        return self.vector.is_collinear(other.vector)
 
-class Rotation(Move):
+class Rotation:
 
-    def __init__(self,start, end, vector):
-        super().__init__(start, end)
-        self.vector = vector
+    def __init__(self, start: Point, end: Point, start_vector: Point, end_vector: Point):
+        self.arc = Arc(start, end, start_vector, end_vector)
+
+    @classmethod
+    def new_from_move(cls, previous_move, move):
+        return Rotation(previous_move.end, move.end, previous_move.vector, move.vector)
+
+

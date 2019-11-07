@@ -100,7 +100,7 @@ class Line:
         dp_vo = dp.scalar_product(v0)
         dp_v1 = dp.scalar_product(v1)
 
-        if math.isclose( math.fabs(v1_v0), 1.):
+        if math.isclose(math.fabs(v1_v0), 1.):
             raise ValueError('Lines are parallel')
         else:
             coef0 = (dp_vo - dp_v1 * v1_v0) / (1 - v1_v0 * v1_v0)
@@ -111,50 +111,55 @@ class Line:
         return f'line({self.point}, {self.vector})'
 
 
-class CircularArc:
-    def __init__(self, start: Point, end: Point, tangent: Point):
+class Arc:
+    def __init__(self, start: Point, end: Point, start_tangent: Point, end_tangent: Point = None):
         self.start = start
         self.end = end
-        self.center = CircularArc.compute_center_with_tangent(start, end, tangent)
+        self.center = Arc.compute_center(start, end, start_tangent, end_tangent)
         self.radius = Point.distance(self.center, self.start)
         self.angle = 2 * math.asin(Point.distance(start, end) / (2 * self.radius))
         self.length = self.angle * math.pi * self.radius
 
-    @staticmethod
-    def compute_center(start, end, radius, angle):
-        chord = Point((end.x - start.x), (end.y - start.y))
-        c = Point((end.x + start.x) / 2, (end.y + start.y) / 2)
-        ortho_c = chord.normal()
-        ortho_c = ortho_c.normalize()
-        center = ortho_c * radius * math.cos(angle / 2) + c
-        return center
+    @classmethod
+    def compute_center(cls, start, end, start_tangent, end_tangent):
+        if not end_tangent:
+            return Arc.compute_center_from_start_tangent(start, end, start_tangent)
+        else:
+            return Arc.compute_intersection_with_each_tangent(start, end, start_tangent, end_tangent)
 
     @staticmethod
-    def compute_center_with_tangent(start, end, tangent):
+    def compute_center_from_start_tangent(start, end, tangent):
         chord = end - start
         c = Point((end.x + start.x) / 2, (end.y + start.y) / 2)
         try:
-            center = CircularArc.compute_intersection_with_each_tangent(start, c, tangent, chord)
+            center = Arc.compute_intersection_with_each_tangent(start, c, tangent, chord)
         except ValueError:
             center = c
         return center
 
     @staticmethod
-    def compute_center_with_each_tangent(p0, p1, tangent_p0, tangent_p1):
+    def compute_center_from_both_tangents(p0, p1, tangent_p0, tangent_p1):
         try:
-            center = CircularArc.compute_intersection_with_each_tangent(p0, p1, tangent_p0, tangent_p1)
+            center = Arc.compute_intersection_with_each_tangent(p0, p1, tangent_p0, tangent_p1)
         except ValueError:
             center = Point((p1.x + p0.x) / 2, (p1.y + p0.y) / 2)
         return center
 
     @staticmethod
     def compute_intersection_with_each_tangent(p0, p1, tangent_p0, tangent_p1):
+        """
+        Computes center from both tangents, from the fist point and the second point.
+        :param p0: Point the first point of the Arc
+        :param p1: Point  the second point of the Arc
+        :param tangent_p0: Point the tangent vector of first point of the Arc
+        :param tangent_p1: Point the tangent vector of 2nd point of the Arc
+        :return: intersection of normal lines to vectors, aka the center
+        """
         radial_p0 = tangent_p0.normal()
         radial_p1 = tangent_p1.normal()
         line_p0 = Line(p0, radial_p0)
         line_p1 = Line(p1, radial_p1)
         return line_p0.intersection(line_p1)
-
 
     @staticmethod
     def find_angle_and_chord_vector(start, end, tangent):

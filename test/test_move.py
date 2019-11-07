@@ -12,3 +12,14 @@ class testMove:
         assert m.end == 1.0
         assert m.length == math.sqrt(2)
         assert m.vector == Point(math.sqrt(1 / 2), math.sqrt(1 / 2))
+
+
+class TestRotation:
+
+
+    def test_rotation(self):
+        prev_ = Move(Point(0, 0), Point(10, 0))
+        next_ =  Move(Point(10, 0), Point(10, 10))
+
+        rot = Rotation.new_from_move(prev_, next_)
+        assert rot.arc.radius == 1
