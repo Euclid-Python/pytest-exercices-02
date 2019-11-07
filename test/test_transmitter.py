@@ -4,8 +4,6 @@ import pytest
 from pytest_mock import mocker
 
 
-
-
 class TestTransmitter:
 
     @pytest.fixture()
@@ -24,6 +22,7 @@ class TestTransmitter:
         robot, tr = init_transmitter
         tc = Telecom(command=Command.READY_FOR_LOADING)
         # when
+        robot.is_moving.return_value = False
         tm = tr.exchange(tc)
         # then
         assert tm.command == Command.READY_FOR_LOADING
@@ -33,9 +32,21 @@ class TestTransmitter:
         robot, tr = init_transmitter
         tc = Telecom(command=Command.READY_FOR_LOADING)
         # when
-        robot.is_moving.return_value = False
+        robot.is_moving.return_value = True
         tm = tr.exchange(tc)
         # then
         assert tm.command == Command.MOVING
+
+    @pytest.mark.skip(msg="for exercise")
+    def test_send_tc_loading(self, init_transmitter):
+        assert False, "Non implemented yet"
+
+    @pytest.mark.skip(msg="for exercise")
+    def test_send_tc_loading_when_moving(self, init_transmitter):
+        assert False, "Non implemented yet"
+
+    @pytest.mark.skip(msg="for exercise")
+    def test_send_tc_move(self, init_transmitter):
+        assert False, "Non implemented yet"
 
 
