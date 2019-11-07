@@ -100,7 +100,7 @@ class Line:
         dp_vo = dp.scalar_product(v0)
         dp_v1 = dp.scalar_product(v1)
 
-        if math.isclose(v1_v0, 1.):
+        if math.isclose( math.fabs(v1_v0), 1.):
             raise ValueError('Lines are parallel')
         else:
             coef0 = (dp_vo - dp_v1 * v1_v0) / (1 - v1_v0 * v1_v0)
@@ -131,21 +131,30 @@ class CircularArc:
 
     @staticmethod
     def compute_center_with_tangent(start, end, tangent):
-        ortho_tgt = tangent.normal()
-        line_radial = Line(start, ortho_tgt)
-
         chord = end - start
-
         c = Point((end.x + start.x) / 2, (end.y + start.y) / 2)
-        ortho_c = chord.normal().normalize()
-
-        line_bissect = Line(c, ortho_c)
-
         try:
-            center = line_radial.intersection(line_bissect)
+            center = CircularArc.compute_intersection_with_each_tangent(start, c, tangent, chord)
         except ValueError:
             center = c
         return center
+
+    @staticmethod
+    def compute_center_with_each_tangent(p0, p1, tangent_p0, tangent_p1):
+        try:
+            center = CircularArc.compute_intersection_with_each_tangent(p0, p1, tangent_p0, tangent_p1)
+        except ValueError:
+            center = Point((p1.x + p0.x) / 2, (p1.y + p0.y) / 2)
+        return center
+
+    @staticmethod
+    def compute_intersection_with_each_tangent(p0, p1, tangent_p0, tangent_p1):
+        radial_p0 = tangent_p0.normal()
+        radial_p1 = tangent_p1.normal()
+        line_p0 = Line(p0, radial_p0)
+        line_p1 = Line(p1, radial_p1)
+        return line_p0.intersection(line_p1)
+
 
     @staticmethod
     def find_angle_and_chord_vector(start, end, tangent):

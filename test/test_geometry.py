@@ -103,3 +103,53 @@ def test_find_angle_from_2_vectors(a, b, angle):
         return math.acos(u.scalar_product(v))
 
     assert f(Point(a[0], a[1]), Point(b[0], b[1])) == angle
+
+def test_find_find_angle_and_chord_vector():
+    angle, u, distance = CircularArc.find_angle_and_chord_vector(Point(-1, 0),
+                                                                 Point(1, 0),
+                                                                 Point(0, 1))
+    assert angle == math.pi
+
+
+def test_simple_arc():
+    candidate = CircularArc(Point(-1, 0),
+                           Point(1, 0),
+                           Point(0, 1))
+    assert candidate.radius == 1
+    assert candidate.angle == math.pi
+    assert candidate.center == Point(0., 0.)
+
+
+def test_45deg_arc():
+    candidate = CircularArc(Point(1, 0),
+                           Point(0, 1),
+                           Point(0, 1))
+
+    assert math.isclose(candidate.angle, math.pi / 2)
+    assert candidate.center == Point(0, 0)
+    assert math.isclose(candidate.radius, 1)
+
+
+def test_reverse_45deg_arc():
+    candidate = CircularArc(Point(1, 0),
+                           Point(0, 1),
+                           Point(0, -1))
+
+    assert candidate.center == Point(0, 0)
+    assert math.isclose(candidate.radius, 1)
+    assert math.isclose(candidate.angle, math.pi / 2)
+
+
+def test_compute_center_with_each_tangent_simple():
+    candidate = CircularArc.compute_center_with_each_tangent(p0=Point(-1,0),
+                                                 p1=Point(1, 0),
+                                                 tangent_p0=Point(0,1),
+                                                 tangent_p1=Point(0,-1))
+    assert candidate == Point(0, 0)
+
+def test_compute_center_with_each_tangent():
+    candidate = CircularArc.compute_center_with_each_tangent(p0=Point(-1,0),
+                                                 p1=Point(1, 0),
+                                                 tangent_p0=Point(1,1),
+                                                 tangent_p1=Point(1,-1))
+    assert candidate == Point(0, -1)
