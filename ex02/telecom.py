@@ -3,13 +3,6 @@ from enum import (Enum)
 from typing import Dict
 
 
-class Kind(Enum):
-    """
-    Enumeration for telecom kinds.
-    """
-    MOTION = 'motion'
-
-
 class Command(Enum):
     """
     Enumeration for telecom commands.
@@ -23,20 +16,13 @@ class Command(Enum):
     MOVED = 'moved'
 
 
-class Telecommunication(object):
+class Telecom(object):
 
-    @classmethod
-    def new_command(cls, kind: Kind, command: Command, payload=None, errors=None):
-        assert isinstance(kind, Kind)
+    def __init__(self, command: Command, payload=None, errors=None):
         assert isinstance(command, Command)
-
-        tc = {'kind': kind, 'command': command}
-        if payload is not None:
-            tc['payload'] = payload
-        if errors is not None:
-            tc['errors'] = errors
-
-        return tc
+        self.command = command
+        self.payload = payload
+        self.errors= errors
 
 
 class Exchanger(ABC):

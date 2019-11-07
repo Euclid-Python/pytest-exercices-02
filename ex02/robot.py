@@ -1,4 +1,4 @@
-from ex02.telecom import Telecommunication, Exchanger
+from ex02.telecom import Telecom, Exchanger
 import inspect
 from typing import List, Dict
 
@@ -21,23 +21,24 @@ class RobotComponent:
         """
         self.robot = robot
 
-
-    def find_handlers_for_suffix(self, prefix):
+    @staticmethod
+    def find_handlers_for_suffix(instance, prefix):
         """
         Find methods starting with prefix
+        :param instance:
         :param prefix:
-        :return: a dictionnary of functions
+        :return: a dictionary of functions indexed by postfix
         """
 
-        def fname(fn, prefix):
+        def name(fn, prefix):
             return fn[0][len(prefix):]
 
-        def is_func(fn, prefix):
+        def match(fn, prefix):
             return fn[0].startswith(prefix)
 
-        return {fname(fn, prefix): getattr(self, fn[0])
-                for fn in inspect.getmembers(self, inspect.ismethod)
-                if is_func(fn, prefix)}
+        return {name(fn, prefix): getattr(instance, fn[0])
+                for fn in inspect.getmembers(instance, inspect.ismethod)
+                if match(fn, prefix)}
 
 
 class Robot:
@@ -62,21 +63,21 @@ class Transmitter(RobotComponent, Exchanger):
 
     def __init__(self):
         super().__init__()
-        self.handlers = self.find_handlers_for_suffix('_on_')
+        self.handlers = self.find_handlers_for_suffix(self, '_on_')
 
     """
     Transmitter Class
     """
 
     def exchange(self, tc: Dict) -> Dict:
-        cmd = tc['command']
+        cmd = tc.command
         method = self.handlers[cmd.name]
         return method(tc)
 
     def _on_READY_FOR_LOADING(self, tc: Dict) -> Dict:
         if self.robot.is_moving():
-            return Telecommunication.new_command(kind=tc['kind'],command=tc['command'])
-        return Telecommunication.new_command(kind=tc['kind'],command=Command.MOVING)
+            return Telecom(command=tc.command)
+        return Telecom(command=Command.MOVING)
 
 class Wheel:
     pass

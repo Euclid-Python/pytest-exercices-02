@@ -1,9 +1,9 @@
 from ex02.robot import Transmitter
-from ex02.telecom import Telecommunication, Kind, Command
+from ex02.telecom import Telecom, Command
 import pytest
 from pytest_mock import mocker
 
-new_command = Telecommunication.new_command
+
 
 
 class TestTransmitter:
@@ -22,20 +22,20 @@ class TestTransmitter:
     def test_send_tc_ready_for_loading(self, init_transmitter):
         # given
         robot, tr = init_transmitter
-        tc = new_command(kind=Kind.MOTION, command=Command.READY_FOR_LOADING)
+        tc = Telecom(command=Command.READY_FOR_LOADING)
         # when
         tm = tr.exchange(tc)
         # then
-        assert tm['command'] == Command.READY_FOR_LOADING
+        assert tm.command == Command.READY_FOR_LOADING
 
     def test_send_tc_ready_for_loading_when_moving(self, init_transmitter):
         # given
         robot, tr = init_transmitter
-        tc = new_command(kind=Kind.MOTION, command=Command.READY_FOR_LOADING)
+        tc = Telecom(command=Command.READY_FOR_LOADING)
         # when
         robot.is_moving.return_value = False
         tm = tr.exchange(tc)
         # then
-        assert tm['command'] == Command.MOVING
+        assert tm.command == Command.MOVING
 
 
