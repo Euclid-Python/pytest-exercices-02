@@ -105,6 +105,9 @@ class Engine:
     def __init__(self, wheel: Wheel):
         self.wheel = wheel
 
+    def run(self, length: float):
+        self.wheel.run(length)
+
 
 class EnergySupplier:
 
@@ -127,6 +130,9 @@ class MotionController(RobotComponent):
         new_motions = self.optimize_motions(motions)
         return new_motions
 
+    def convert_in_points(self, positions):
+        return list([Point.new(xy) for xy in positions])
+
     def convert_in_motions(self, points):
         """
         Converts points into motion collection
@@ -136,15 +142,23 @@ class MotionController(RobotComponent):
         motions = []
         start = points[0]
         for p in points[1:]:
-            motions.append(Move(start, p))
+            motions.append(Translation(start, p))
             start = p
         return motions
 
     def optimize_motions(self, motions):
         return self.optimizer.optimize(motions)
 
-    def convert_in_points(self, positions):
-        return list([Point.new(xy) for xy in positions])
+    def run_translation(self, translation: 'Translation'):
+        length = translation.length
+        self.right_engine.run(length)
+        self.left_engine.run(length)
+
+    def run_rotation(self, rotation: 'Rotation'):
+        pass
+
+
+
 
 
 class Optimizer:
@@ -153,7 +167,6 @@ class Optimizer:
         new_motions = []
         previous_move = None
         for move in motions:
-            to_add = move
             if previous_move:
                 if not previous_move.is_parallel_with(move):
                     rotation = Rotation.new_from_move(previous_move, move)
@@ -162,17 +175,18 @@ class Optimizer:
             new_motions.append(move)
         return new_motions
 
-
-
-class Move:
+class Translation:
 
     def __init__(self, start, end):
         self.start = start
         self.end = end
-        self.length = Point.distance(start, end)
+        self.length = self.get_length()
         self.vector = (end - start).normalize()
 
-    def is_parallel_with(self, other: 'Move'):
+    def get_length(self):
+        return Point.distance(self.start, self.end)
+
+    def is_parallel_with(self, other: 'Translation'):
         return self.vector.is_collinear(other.vector)
 
 

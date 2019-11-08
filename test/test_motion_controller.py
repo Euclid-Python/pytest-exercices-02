@@ -2,7 +2,7 @@ from unittest.mock import call
 
 import pytest
 
-from ex02.robot import Robot, MotionController, Engine, Rotation, Move, Optimizer
+from ex02.robot import Robot, MotionController, Engine, Rotation, Translation, Optimizer
 from ex02.geometry import Point
 
 
@@ -59,7 +59,7 @@ class TestMotionController:
     def test_optimize_motions(self, init_controller, convert_to_points):
         #--given--
         ctrl, robot, optimizer, *_ = init_controller
-        motions = [Move(Point(0, 0), Point(10,0)), Move(Point(10,0), Point(10,10))]
+        motions = [Translation(Point(0, 0), Point(10, 0)), Translation(Point(10, 0), Point(10, 10))]
         #--when--
         results = ctrl.optimize_motions(motions)
         #--then--
