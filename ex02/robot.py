@@ -155,7 +155,8 @@ class MotionController(RobotComponent):
         self.left_engine.run(length)
 
     def run_rotation(self, rotation: 'Rotation'):
-        pass
+        if rotation.is_on_the_spot():
+            pass
 
 
 
@@ -193,8 +194,15 @@ class Translation:
 class Rotation:
 
     def __init__(self, start: Point, end: Point, start_vector: Point, end_vector: Point):
-        if not start == end:
-            self.arc = Arc(start, end, start_vector, end_vector)
+        self.arc = Arc(start, end, start_vector, end_vector)
+
+
+    def is_on_the_spot(self) -> bool :
+        """
+        Indicates if rotation is on _the spot, i.e. with a radius == 0
+        :return: True if is on the spot
+        """
+        return self.arc.radius == 0
 
     @classmethod
     def new_from_move(cls, previous_move, move):

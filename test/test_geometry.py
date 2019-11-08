@@ -1,6 +1,6 @@
 import pytest
 import math
-from ex02.geometry import Point, Line, Arc
+from ex02.geometry import Point, Line, Arc, Geometry
 
 
 def test_add():
@@ -104,6 +104,7 @@ def test_find_angle_from_2_vectors(a, b, angle):
 
     assert f(Point(a[0], a[1]), Point(b[0], b[1])) == angle
 
+
 def test_find_find_angle_and_chord_vector():
     angle, u, distance = Arc.find_angle_and_chord_vector(Point(-1, 0),
                                                          Point(1, 0),
@@ -140,12 +141,89 @@ def test_reverse_45deg_arc():
     assert math.isclose(candidate.angle, math.pi / 2)
 
 
-def test_compute_center_with_each_tangent_simple():
+def test_arc_with_zero_radius():
+    candidate = Arc(start=Point(0, 0),
+                    end=Point(0, 0),
+                    start_tangent=Point(0, 1),
+                    end_tangent=Point(0, -1))
+    assert candidate.radius == 0
+    assert candidate.angle == math.pi
+    assert candidate.center == Point(0., 0.)
+
+
+def test_compute_center_from_both_tangents_simple():
     candidate = Arc.compute_center_from_both_tangents(p0=Point(-1, 0), p1=Point(1, 0), tangent_p0=Point(0, 1),
                                                       tangent_p1=Point(0, -1))
     assert candidate == Point(0, 0)
 
-def test_compute_center_with_each_tangent():
+
+def test_compute_center_from_both_tangents():
     candidate = Arc.compute_center_from_both_tangents(p0=Point(-1, 0), p1=Point(1, 0), tangent_p0=Point(1, 1),
                                                       tangent_p1=Point(1, -1))
     assert candidate == Point(0, -1)
+
+
+def test_compute_center_from_both_tangents_but_same_points():
+    candidate = Arc.compute_center_from_both_tangents(p0=Point(0, 0), p1=Point(0, 0), tangent_p0=Point(1, 1),
+                                                      tangent_p1=Point(1, -1))
+    assert candidate == Point(0, 0)
+
+
+def rotate(vector, angle):
+    from math import cos, sin
+    x = vector.x * cos(angle) - vector.y * sin(angle)
+    y = vector.x * sin(angle) + vector.y * cos(angle)
+    return Point(x, y)
+
+
+def rotate_from_axe(vector, axe):
+    axe = axe.normalize()
+    cos_ = axe.x
+    sin_ = -axe.y
+    x = vector.x * cos_ - vector.y * sin_
+    y = vector.x * sin_ + vector.y * cos_
+    return Point(x, y)
+
+@pytest.mark.parametrize("vector, axe, expected", [
+    ( (0, 1), (1, 0), (0, 1) ),
+    ( (0, 1), (0, 1), (1, 0)),
+    ((0, 1), (0.5, 0.5), (0.5, 0.5)),
+    ((0, 1), (-0.5, -0.5), (-0.5, -0.5)),
+])
+def test_rotate_from_axe(vector, axe, expected):
+    vector = Point.new(vector)
+    axe = Point.new(axe)
+    expected = Point.new(expected).normalize()
+    assert rotate_from_axe(vector, axe) == expected
+    assert rotate_from_axe(expected, Point(axe.x, - axe.y)) == vector
+
+@pytest.mark.parametrize("vector, axe, expected", [
+    ( (0, 1), (1, 0), (0, -1) ),
+    ( (0, 1), (0, 1), (0,1)),
+    ((0, 1), (0.5, 0.5), (1, 0)),
+    ((0, 1), (-0.5, -0.5), (1, 0)),
+])
+def test_get_symmetrical_with_rotate_from_axe(vector, axe, expected):
+    vector = Point.new(vector)
+    axe = Point.new(axe)
+    expected = Point.new(expected).normalize()
+    symmetrical = rotate_from_axe(vector, axe)
+    symmetrical = Point(symmetrical.x, -symmetrical.y)
+    assert rotate_from_axe(symmetrical, Point(axe.x, - axe.y)) == expected
+
+
+@pytest.mark.parametrize("vector, axe, expected", [
+    ( (0, 1), (1, 0), (0, -1) ),
+    ( (0, 1), (0, 1), (0,1)),
+    ((0, 1), (0.5, 0.5), (1, 0)),
+    ((0, 1), (-0.5, -0.5), (1, 0)),
+    ((1, 1), (0,1), (-1, 1)),
+])
+def test_geometry_get_symmetrical(vector, axe, expected):
+    vector = Point.new(vector)
+    axe = Point.new(axe)
+    expected = Point.new(expected).normalize()
+    assert expected == Geometry.get_symmetrical(vector, axe).normalize()
+
+
+

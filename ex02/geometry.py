@@ -1,4 +1,4 @@
-import math
+from math import cos, sin, acos, asin, sqrt, isclose, fabs, pi
 
 """"
 Module for simple geometry in 2D
@@ -17,9 +17,12 @@ class Point:
     def normal(self):
         return Point(-self.y, self.x)
 
+    def reverse(self):
+        return Point(-self.x, -self.y)
+
     def normalize(self, d=0):
         if d == 0:
-            d = math.sqrt(self.x * self.x + self.y * self.y)
+            d = sqrt(self.x * self.x + self.y * self.y)
         return Point(self.x / d, self.y / d)
 
     def scalar_product(self, other: 'Point'):
@@ -27,7 +30,7 @@ class Point:
 
     def is_orthogonal(self, other: 'Point'):
         product = self.scalar_product(other)
-        return math.isclose(product, 0)
+        return isclose(product, 0)
 
     def is_collinear(self, other: 'Point'):
         return self.is_orthogonal(other.normal())
@@ -56,7 +59,7 @@ class Point:
         if isinstance(other, tuple):
             other = Point.new(other)
         if isinstance(other, Point):
-            r = math.isclose(self.x, other.x, abs_tol=1e-9) and math.isclose(self.y, other.y, abs_tol=1e-9)
+            r = isclose(self.x, other.x, abs_tol=1e-9) and isclose(self.y, other.y, abs_tol=1e-9)
         return r
 
     def __repr__(self):
@@ -66,7 +69,7 @@ class Point:
     def distance(a: 'Point', b: 'Point') -> float:
         dx = a.x - b.x
         dy = a.y - b.y
-        return math.sqrt(dx * dx + dy * dy)
+        return sqrt(dx * dx + dy * dy)
 
 
 class Segment:
@@ -100,7 +103,7 @@ class Line:
         dp_vo = dp.scalar_product(v0)
         dp_v1 = dp.scalar_product(v1)
 
-        if math.isclose(math.fabs(v1_v0), 1.):
+        if isclose(fabs(v1_v0), 1.):
             raise ValueError('Lines are parallel')
         else:
             coef0 = (dp_vo - dp_v1 * v1_v0) / (1 - v1_v0 * v1_v0)
@@ -115,10 +118,15 @@ class Arc:
     def __init__(self, start: Point, end: Point, start_tangent: Point, end_tangent: Point = None):
         self.start = start
         self.end = end
+        if end_tangent is None:
+            end_tangent = Geometry.get_symmetrical(start_tangent, (start - end))
+
         self.center = Arc.compute_center(start, end, start_tangent, end_tangent)
         self.radius = Point.distance(self.center, self.start)
-        self.angle = 2 * math.asin(Point.distance(start, end) / (2 * self.radius))
-        self.length = self.angle * math.pi * self.radius
+        distance = Point.distance(start, end)
+        self.angle = 2 * asin(distance / (2 * self.radius)) if distance else acos(
+            start_tangent.scalar_product(end_tangent))
+        self.length = self.angle * pi * self.radius
 
     @classmethod
     def compute_center(cls, start, end, start_tangent, end_tangent):
@@ -171,8 +179,26 @@ class Arc:
         u = Point(b.x - a.x, b.y - a.y)
         u = u.normalize(distance)
         v = v.normalize()
-        angle = math.acos(u.scalar_product(v))
+        angle = acos(u.scalar_product(v))
         sign = u.x * v.y + u.y * v.x
         angle = 2 * angle * sign
 
         return angle, u, distance
+
+
+class Geometry:
+
+    @staticmethod
+    def rotate_from_axe(vector, axe):
+        axe = axe.normalize()
+        cos_ = axe.x
+        sin_ = -axe.y
+        x = vector.x * cos_ - vector.y * sin_
+        y = vector.x * sin_ + vector.y * cos_
+        return Point(x, y)
+
+    @staticmethod
+    def get_symmetrical(vector, axe):
+        symmetrical = Geometry.rotate_from_axe(vector, axe)
+        symmetrical = Point(symmetrical.x, -symmetrical.y)
+        return Geometry.rotate_from_axe(symmetrical, Point(axe.x, - axe.y))
