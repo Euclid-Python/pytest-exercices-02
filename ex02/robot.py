@@ -43,7 +43,6 @@ class RobotComponent:
 
 
 class Robot:
-
     STATUS_MOVING = 'moving'
 
     def __init__(self, transmitter: 'Transmitter', motion_controller: 'MotionController'):
@@ -59,7 +58,6 @@ class Robot:
     def load_positions(self, motions: List):
         pass
 
-
     def is_moving(self):
         return self.status is Robot.STATUS_MOVING
 
@@ -74,17 +72,17 @@ class Transmitter(RobotComponent, Exchanger):
     Transmitter Class
     """
 
-    def exchange(self, tc: Dict) -> Dict:
+    def exchange(self, tc: Telecom) -> Telecom:
         cmd = tc.command
         method = self.handlers[cmd.name]
         return method(tc)
 
-    def _on_READY_FOR_LOADING(self, tc: Dict) -> Dict:
+    def _on_READY_FOR_LOADING(self, tc: Telecom) -> Telecom:
         if self.robot.is_moving():
             return Telecom(command=Command.MOVING)
         return Telecom(command=tc.command)
 
-    def _on_LOADING(self, tc: Dict) -> Dict:
+    def _on_LOADING(self, tc: Telecom) -> Telecom:
         if self.robot.is_moving():
             return Telecom(command=Command.MOVING)
 
@@ -96,6 +94,7 @@ class Transmitter(RobotComponent, Exchanger):
             return Telecom(command=Command.LOADED_OK)
         except Exception as e:
             return Telecom(command=Command.LOADED_INVALID, errors=[str(e)])
+
 
 class Wheel:
     pass
@@ -115,9 +114,10 @@ class EnergySupplier:
 
 class MotionController(RobotComponent):
 
-    def __init__(self, right_engine: Engine, left_engine: Engine, configuration):
+    def __init__(self, right_engine: Engine, left_engine: Engine, optimizer: 'Optimizer', configuration):
         self.right_engine = right_engine
         self.left_engine = left_engine
+        self.optimizer = optimizer
         self.configuration = configuration
         super().__init__()
 
@@ -141,6 +141,15 @@ class MotionController(RobotComponent):
         return motions
 
     def optimize_motions(self, motions):
+        return self.optimizer.optimize(motions)
+
+    def convert_in_points(self, positions):
+        return list([Point.new(xy) for xy in positions])
+
+
+class Optimizer:
+
+    def optimize(self, motions: List) -> List:
         new_motions = []
         previous_move = None
         for move in motions:
@@ -148,14 +157,11 @@ class MotionController(RobotComponent):
             if previous_move:
                 if not previous_move.is_parallel_with(move):
                     rotation = Rotation.new_from_move(previous_move, move)
-                    to_add = rotation
+                    new_motions.append(rotation)
             previous_move = move
-            new_motions.append(to_add)
+            new_motions.append(move)
         return new_motions
 
-
-    def convert_in_points(self, positions):
-        return list([Point.new(xy) for xy in positions])
 
 
 class Move:
@@ -169,13 +175,13 @@ class Move:
     def is_parallel_with(self, other: 'Move'):
         return self.vector.is_collinear(other.vector)
 
+
 class Rotation:
 
     def __init__(self, start: Point, end: Point, start_vector: Point, end_vector: Point):
-        self.arc = Arc(start, end, start_vector, end_vector)
+        if not start == end:
+            self.arc = Arc(start, end, start_vector, end_vector)
 
     @classmethod
     def new_from_move(cls, previous_move, move):
-        return Rotation(previous_move.end, move.end, previous_move.vector, move.vector)
-
-
+        return Rotation(previous_move.end, move.start, previous_move.vector, move.vector)

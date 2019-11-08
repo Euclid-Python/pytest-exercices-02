@@ -3,7 +3,6 @@ from ex02.telecom import Telecom, Command
 import pytest
 from pytest_mock import mocker
 
-
 class TestTransmitter:
 
     @pytest.fixture()

@@ -125,7 +125,7 @@ class Arc:
         if not end_tangent:
             return Arc.compute_center_from_start_tangent(start, end, start_tangent)
         else:
-            return Arc.compute_intersection_with_each_tangent(start, end, start_tangent, end_tangent)
+            return Arc.compute_center_from_both_tangents(start, end, start_tangent, end_tangent)
 
     @staticmethod
     def compute_center_from_start_tangent(start, end, tangent):
