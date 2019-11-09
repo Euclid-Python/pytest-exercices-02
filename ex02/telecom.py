@@ -28,5 +28,5 @@ class Telecom(object):
 class Exchanger(ABC):
 
     @abstractmethod
-    def exchange(self, tm: Dict) -> Dict:
+    def exchange(self, tm: Telecom) -> Telecom:
         pass

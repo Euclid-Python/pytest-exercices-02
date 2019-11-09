@@ -256,7 +256,7 @@ class Arranger:
         return new_motions
 
 
-class Robot:
+class Robot(Exchanger):
     STATUS_MOTIONLESS = 'motionless'
     STATUS_MOVING = 'moving'
 
@@ -278,6 +278,9 @@ class Robot:
         self.navigator.register(self)
         self.energy_supplier.register(self)
 
+    def exchange(self, tc: Telecom) -> Telecom:
+        return self.transmitter.exchange(tc)
+
     def load_positions(self, positions: List):
         motions = self.navigator.compute_motions(positions)
         total_length = self.navigator.compute_total_distance(motions)
@@ -296,4 +299,4 @@ class Robot:
             raise ValueError("Empty motion list")
 
     def is_moving(self):
-        return self.status is Robot.STATUS_MOVING
+        return self.status == Robot.STATUS_MOVING
