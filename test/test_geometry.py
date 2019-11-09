@@ -117,7 +117,7 @@ def test_simple_arc():
                     Point(1, 0),
                     Point(0, 1))
     assert candidate.radius == 1
-    assert candidate.angle == math.pi
+    assert candidate.angle == -math.pi
     assert candidate.center == Point(0., 0.)
 
 
@@ -129,16 +129,19 @@ def test_45deg_arc():
     assert math.isclose(candidate.angle, math.pi / 2)
     assert candidate.center == Point(0, 0)
     assert math.isclose(candidate.radius, 1)
+    assert candidate.direction == Arc.DIRECT
 
 
 def test_reverse_45deg_arc():
-    candidate = Arc(Point(1, 0),
-                    Point(0, 1),
-                    Point(0, -1))
+    candidate = Arc(start=Point(1, 0),
+                    end=Point(0, 1),
+                    start_tangent=Point(0, -1))
 
     assert candidate.center == Point(0, 0)
     assert math.isclose(candidate.radius, 1)
-    assert math.isclose(candidate.angle, math.pi / 2)
+    assert candidate.end_tangent == Point(1,0)
+    assert math.isclose(candidate.angle, -3*math.pi / 2)
+    assert candidate.direction == Arc.INDIRECT
 
 
 def test_arc_with_zero_radius():
@@ -207,8 +210,10 @@ def test_get_symmetrical_with_rotate_from_axe(vector, axe, expected):
     vector = Point.new(vector)
     axe = Point.new(axe)
     expected = Point.new(expected).normalize()
+
     symmetrical = rotate_from_axe(vector, axe)
     symmetrical = Point(symmetrical.x, -symmetrical.y)
+
     assert rotate_from_axe(symmetrical, Point(axe.x, - axe.y)) == expected
 
 
@@ -225,5 +230,34 @@ def test_geometry_get_symmetrical(vector, axe, expected):
     expected = Point.new(expected).normalize()
     assert expected == Geometry.get_symmetrical(vector, axe).normalize()
 
+@pytest.mark.parametrize("a, b, expected", [
+    ( (1,0), (0,1), 1),
+    ((0, 1), (1, 0), -1)
 
+])
+def test_geometry_angle_direction(a,b, expected):
+    a = Point.new(a)
+    b = Point.new(b)
+    assert a.vectorial_product(b) == expected
 
+def test_find_angle_from_tangents_and_points():
+    a = Point(1,0)
+    b = Point(0,1)
+    ta = Point(0,-1)
+    tb = Point(1,0)
+    c = Point(0,0)
+    vk = (c-a).vectorial_product(ta)
+
+    assert vk == 1
+    def rotate_from_center(c, p, phi):
+        radius = Point.distance(c, p)
+        x = radius * math.cos(phi)
+        y = radius * math.sin(phi)
+        rotated = Point(x,y) + c
+        return rotated
+
+    rotated = rotate_from_center(c, a, math.pi/2)
+    assert rotated == b
+
+    rotated = rotate_from_center(c, a, -3*math.pi/2)
+    assert rotated == b

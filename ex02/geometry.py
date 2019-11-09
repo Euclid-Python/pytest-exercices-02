@@ -28,6 +28,9 @@ class Point:
     def scalar_product(self, other: 'Point'):
         return self.x * other.x + self.y * other.y
 
+    def vectorial_product(self, other: 'Point'):
+        return self.x*other.y - self.y*other.x
+
     def is_orthogonal(self, other: 'Point'):
         product = self.scalar_product(other)
         return isclose(product, 0)
@@ -115,25 +118,33 @@ class Line:
 
 
 class Arc:
+    INDIRECT = "indirect"
+    DIRECT = "direct"
+
     def __init__(self, start: Point, end: Point, start_tangent: Point, end_tangent: Point = None):
         self.start = start
         self.end = end
         if end_tangent is None:
             end_tangent = Geometry.get_symmetrical(start_tangent, (start - end))
 
-        self.center = Arc.compute_center(start, end, start_tangent, end_tangent)
+        self.start_tangent = start_tangent
+        self.end_tangent = end_tangent
+
+        self.center = Arc.compute_center_from_both_tangents(start, end, start_tangent, end_tangent)
+        self.check_center_and_tangents_coherence()
+
         self.radius = Point.distance(self.center, self.start)
         distance = Point.distance(start, end)
-        self.angle = 2 * asin(distance / (2 * self.radius)) if distance else acos(
-            start_tangent.scalar_product(end_tangent))
+        if distance:
+            self.angle = 2 * asin(distance / (2 * self.radius))
+        else:
+            self.angle = acos(start_tangent.scalar_product(end_tangent))
+
+        self.direction = Arc.compute_direction(self)
+        if self.direction is Arc.INDIRECT:
+            self.angle = self.angle - 2*pi
         self.length = self.angle * pi * self.radius
 
-    @classmethod
-    def compute_center(cls, start, end, start_tangent, end_tangent):
-        if not end_tangent:
-            return Arc.compute_center_from_start_tangent(start, end, start_tangent)
-        else:
-            return Arc.compute_center_from_both_tangents(start, end, start_tangent, end_tangent)
 
     @staticmethod
     def compute_center_from_start_tangent(start, end, tangent):
@@ -184,6 +195,24 @@ class Arc:
         angle = 2 * angle * sign
 
         return angle, u, distance
+
+    def check_center_and_tangents_coherence(self):
+        """
+        Tangents have to turn in the same direction from the center.
+        :return:
+        """
+        v_start = (self.start -self.center).vectorial_product(self.start_tangent)
+        v_end = (self.end -self.center).vectorial_product(self.end_tangent)
+        if not isclose(v_start, v_end):
+            raise ValueError()
+
+    @staticmethod
+    def compute_direction(arc: 'Arc'):
+        v = (arc.center - arc.start).vectorial_product(arc.start_tangent)
+        if v > 0:
+            return Arc.INDIRECT
+        return Arc.DIRECT
+
 
 
 class Geometry:

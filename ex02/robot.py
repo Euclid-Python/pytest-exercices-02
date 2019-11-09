@@ -1,3 +1,5 @@
+import math
+
 from ex02.telecom import Telecom, Exchanger
 import inspect
 from typing import List, Dict
@@ -155,8 +157,21 @@ class MotionController(RobotComponent):
         self.left_engine.run(length)
 
     def run_rotation(self, rotation: 'Rotation'):
+        wheel_axis = self.configuration.wheel_axis
+        angle = rotation.arc.angle
+        radius = rotation.arc.radius
+
         if rotation.is_on_the_spot():
-            pass
+            lenght = wheel_axis/2*angle
+            self.right_engine.run(lenght)
+            self.left_engine.run(-lenght)
+        else:
+            big_length = (radius + wheel_axis/2)*angle
+            sho_length = (radius - wheel_axis/2)*angle
+            #if angle < 0 :
+
+
+
 
 
 

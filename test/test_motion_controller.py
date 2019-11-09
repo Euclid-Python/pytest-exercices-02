@@ -64,3 +64,13 @@ class TestMotionController:
         results = ctrl.optimize_motions(motions)
         #--then--
         optimizer.optimize.assert_called()
+
+
+    def test_translation(self, init_controller):
+        #--given--
+        ctrl, robot, optimizer, right_engine, left_engine, *_ = init_controller
+        tr = Translation(Point(0, 0), Point(10, 0))
+        # --when--
+        ctrl.run_translation(tr)
+        right_engine.run.assert_called_with(10.)
+        left_engine.run.assert_called_with(10.)
