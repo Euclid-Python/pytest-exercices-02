@@ -1,11 +1,12 @@
 import math
 
+from ex02.motion import Translation, Rotation
 from ex02.telecom import Telecom, Exchanger
 import inspect
-from typing import List, Dict
+from typing import List
 
 from ex02.telecom import Command
-from ex02.geometry import Point, Segment, Arc
+from ex02.geometry import Point, Arc
 
 
 class RobotComponent:
@@ -24,8 +25,14 @@ class RobotComponent:
         """
         self.robot = robot
 
+class Transmitter(RobotComponent, Exchanger):
+
+    def __init__(self):
+        super().__init__()
+        self._handlers = self._find_handlers_for_suffix(self, '_on_')
+
     @staticmethod
-    def find_handlers_for_suffix(instance, prefix):
+    def _find_handlers_for_suffix(instance, prefix):
         """
         Find methods starting with prefix
         :param instance:
@@ -33,42 +40,15 @@ class RobotComponent:
         :return: a dictionary of functions indexed by postfix
         """
 
-        def name(fn, prefix):
-            return fn[0][len(prefix):]
+        def name(fn, prefix_):
+            return fn[0][len(prefix_):]
 
-        def match(fn, prefix):
-            return fn[0].startswith(prefix)
+        def match(fn, prefix_):
+            return fn[0].startswith(prefix_)
 
         return {name(fn, prefix): getattr(instance, fn[0])
                 for fn in inspect.getmembers(instance, inspect.ismethod)
                 if match(fn, prefix)}
-
-
-class Robot:
-    STATUS_MOVING = 'moving'
-
-    def __init__(self, transmitter: 'Transmitter', motion_controller: 'MotionController'):
-        self.transmitter = transmitter
-        self.motion_controller = motion_controller
-        self.register_components()
-        self.status = None
-
-    def register_components(self):
-        self.transmitter.register(self)
-        self.motion_controller.register(self)
-
-    def load_positions(self, motions: List):
-        pass
-
-    def is_moving(self):
-        return self.status is Robot.STATUS_MOVING
-
-
-class Transmitter(RobotComponent, Exchanger):
-
-    def __init__(self):
-        super().__init__()
-        self.handlers = self.find_handlers_for_suffix(self, '_on_')
 
     """
     Transmitter Class
@@ -76,7 +56,7 @@ class Transmitter(RobotComponent, Exchanger):
 
     def exchange(self, tc: Telecom) -> Telecom:
         cmd = tc.command
-        method = self.handlers[cmd.name]
+        method = self._handlers[cmd.name]
         return method(tc)
 
     def _on_READY_FOR_LOADING(self, tc: Telecom) -> Telecom:
@@ -97,128 +77,223 @@ class Transmitter(RobotComponent, Exchanger):
         except Exception as e:
             return Telecom(command=Command.LOADED_INVALID, errors=[str(e)])
 
+    def _on_MOVE(self, tc: Telecom) -> Telecom:
+        if self.robot.is_moving():
+            return Telecom(command=Command.MOVING)
+        # -----------------------------------------
+        # TO BE DEVELOPPED
+        # ------------------------------------------
 
 class Wheel:
-    pass
 
+    def run(self, length):
+        pass
 
-class Engine:
-
-    def __init__(self, wheel: Wheel):
-        self.wheel = wheel
-
-    def run(self, length: float):
-        self.wheel.run(length)
-
-
-class EnergySupplier:
+class EnergySupplier(RobotComponent):
+    """Energy supplier is an energy tank"""
 
     def __init__(self, quantity: float = 1000.0):
         self.quantity = quantity
 
+    def consume(self, quantity: float) -> float:
+        self.quantity = self.quantity - quantity
+
+    def has_enough(self, quantity: float) -> float:
+        return quantity < self.quantity
+
 
 class MotionController(RobotComponent):
+    CONSUMPTION_PER_LENGTH_UNIT = 1
+    DEFAULT_WHEEL_AXIS_LENGTH = 1
+    DEFAULT_TIME_STEP = 0.1
+    DEFAULT_SPEED = 0.1
 
-    def __init__(self, right_engine: Engine, left_engine: Engine, optimizer: 'Optimizer', configuration):
-        self.right_engine = right_engine
-        self.left_engine = left_engine
-        self.optimizer = optimizer
+    def __init__(self, right_wheel: Wheel, left_wheel: Wheel, configuration):
+        self.right_wheel = right_wheel
+        self.left_wheel = left_wheel
+
+        self.speed = configuration.get('speed', MotionController.DEFAULT_SPEED)
+        self.time_step = configuration.get('time_step', MotionController.DEFAULT_TIME_STEP)
+        self.consumption_per_length_unit = configuration.get('consumption_per_length_unit',
+                                                             MotionController.CONSUMPTION_PER_LENGTH_UNIT)
         self.configuration = configuration
         super().__init__()
 
-    def compute_motions(self, positions):
-        points = self.convert_in_points(positions)
-        motions = self.convert_in_motions(points)
-        new_motions = self.optimize_motions(motions)
-        return new_motions
-
-    def convert_in_points(self, positions):
-        return list([Point.new(xy) for xy in positions])
-
-    def convert_in_motions(self, points):
+    def run_translation(self, translation: 'Translation', energy_supplier: 'EnergySupplier'):
         """
-        Converts points into motion collection
-        :param points:
-        :return: segment collection
+        Runs translation
+        :param translation:
+        :param energy_supplier: EnergySupplier to supply energy for translation
+        :return:
         """
-        motions = []
-        start = points[0]
-        for p in points[1:]:
-            motions.append(Translation(start, p))
-            start = p
-        return motions
-
-    def optimize_motions(self, motions):
-        return self.optimizer.optimize(motions)
-
-    def run_translation(self, translation: 'Translation'):
         length = translation.length
-        self.right_engine.run(length)
-        self.left_engine.run(length)
+        steps, length_step, duration = self._compute_step_param(length)
+        consumption_per_step = self.get_required_energy_for(length_step)
 
-    def run_rotation(self, rotation: 'Rotation'):
-        wheel_axis = self.configuration.wheel_axis
+        for s in range(steps):
+            self.right_wheel.run(length_step)
+            self.left_wheel.run(length_step)
+            energy_supplier.consume(2 * consumption_per_step)
+
+    def run_rotation(self, rotation: 'Rotation', energy_supplier: 'EnergySupplier'):
+        """
+        Runs rotation
+        :param rotation:
+        :param energy_supplier:
+        :return:
+        """
+        wheel_axis = self.configuration.get('wheel_axis_length', MotionController.DEFAULT_WHEEL_AXIS_LENGTH)
+
+        if rotation.is_on_the_spot():
+            self._run_rotation_on_spot(rotation, wheel_axis, energy_supplier)
+        else:
+            self._run_rotation_on_center(rotation, wheel_axis, energy_supplier)
+
+    def _compute_step_param(self, length):
+        duration = length / self.speed
+        steps = math.floor(duration / self.time_step)
+        length_step = length / steps
+        return steps, length_step, duration
+
+    def move(self, motion, energy_supplier):
+        if isinstance(motion, Translation):
+            self.run_translation(motion, energy_supplier)
+        elif isinstance(motion, Rotation):
+            self.run_rotation(motion, energy_supplier)
+        else:
+            raise ValueError(f"Motion {motion} can not be understood")
+
+    def _run_rotation_on_spot(self, rotation, wheel_axis, energy_supplier):
+        angle = rotation.arc.angle
+        length = angle * wheel_axis / 2
+        steps, length_step, duration = self._compute_step_param(length)
+        consumption_per_step = self.get_required_energy_for(length_step)
+
+        for s in range(steps):
+            self.right_wheel.run(length_step)
+            self.left_wheel.run(-length_step)
+            energy_supplier.consume(2 * consumption_per_step)
+
+    def _run_rotation_on_center(self, rotation, wheel_axis, energy_supplier):
         angle = rotation.arc.angle
         radius = rotation.arc.radius
 
-        if rotation.is_on_the_spot():
-            lenght = wheel_axis/2*angle
-            self.right_engine.run(lenght)
-            self.left_engine.run(-lenght)
+        big_radius = (radius + wheel_axis / 2)
+        sho_radius = (radius - wheel_axis / 2)
+
+        big_length = big_radius * angle
+
+        ratio = sho_radius / big_radius
+
+        steps, length_step, duration = self._compute_step_param(big_length)
+
+        right_len_step = length_step
+        left_len_step = length_step
+
+        if rotation.arc.direction == Arc.DIRECT:
+            left_len_step = ratio * length_step
         else:
-            big_length = (radius + wheel_axis/2)*angle
-            sho_length = (radius - wheel_axis/2)*angle
-            #if angle < 0 :
+            right_len_step = ratio * length_step
+
+        consumption_per_step = self.get_required_energy_for(left_len_step) \
+                               + self.get_required_energy_for(right_len_step)
+
+        for s in range(steps):
+            self.right_wheel.run(right_len_step)
+            self.left_wheel.run(left_len_step)
+            energy_supplier.consume(consumption_per_step)
+
+    def get_required_energy_for(self, length: float):
+        return self.consumption_per_length_unit * length
 
 
+class Navigator(RobotComponent):
+
+    def __init__(self, arranger: 'Arranger'):
+        self.arranger = arranger
+
+    def compute_motions(self, positions):
+        points = self.to_points(positions)
+        motions = self.to_translations(points)
+        new_motions = self.arrange_translations(motions)
+        return new_motions
+
+    def compute_total_distance(self, motions):
+        return super(len(m) for m in motions)
+
+    def arrange_translations(self, translations):
+        return self.arranger.arrange(translations)
+
+    def to_points(self, positions):
+        return list([Point.new(xy) for xy in positions])
+
+    def to_translations(self, points):
+        """
+        Converts points into motion collection
+        :param points:
+        :return: translation collection
+        """
+        translations = []
+        start = points[0]
+        for p in points[1:]:
+            translations.append(Translation(start, p))
+            start = p
+        return translations
 
 
+class Arranger:
 
-
-
-
-class Optimizer:
-
-    def optimize(self, motions: List) -> List:
+    def arrange(self, motions: List) -> List:
         new_motions = []
         previous_move = None
         for move in motions:
             if previous_move:
                 if not previous_move.is_parallel_with(move):
-                    rotation = Rotation.new_from_move(previous_move, move)
+                    rotation = Rotation.new_from_translations(previous_move, move)
                     new_motions.append(rotation)
             previous_move = move
             new_motions.append(move)
         return new_motions
 
-class Translation:
 
-    def __init__(self, start, end):
-        self.start = start
-        self.end = end
-        self.length = self.get_length()
-        self.vector = (end - start).normalize()
+class Robot:
+    STATUS_MOTIONLESS = 'motionless'
+    STATUS_MOVING = 'moving'
 
-    def get_length(self):
-        return Point.distance(self.start, self.end)
+    def __init__(self, transmitter: Transmitter,
+                 motion_controller: MotionController,
+                 navigator: Navigator,
+                 energy_supplier: EnergySupplier):
+        self.transmitter = transmitter
+        self.motion_controller = motion_controller
+        self.navigator = navigator
+        self.energy_supplier = energy_supplier
+        self._register_components()
+        self.status = None
+        self.motions = []
 
-    def is_parallel_with(self, other: 'Translation'):
-        return self.vector.is_collinear(other.vector)
+    def _register_components(self):
+        self.transmitter.register(self)
+        self.motion_controller.register(self)
+        self.navigator.register(self)
+        self.energy_supplier.register(self)
 
+    def load_positions(self, positions: List):
+        motions = self.navigator.compute_motions(positions)
+        total_length = self.navigator.compute_total_distance(motions)
+        total_energy = self.motion_controller.get_required_energy_for(total_length)
+        if not self.energy_supplier.has_enough(total_energy):
+            raise ValueError("Not enough energy")
+        self.motions = motions
 
-class Rotation:
+    def run(self):
+        if len(self.motions) > 0:
+            self.status = Robot.STATUS_MOVING
+            for motion in self.motions:
+                self.motion_controller.move(motion)
+            self.status = Robot.STATUS_MOTIONLESS
+        else:
+            raise ValueError("Empty motion list")
 
-    def __init__(self, start: Point, end: Point, start_vector: Point, end_vector: Point):
-        self.arc = Arc(start, end, start_vector, end_vector)
-
-
-    def is_on_the_spot(self) -> bool :
-        """
-        Indicates if rotation is on _the spot, i.e. with a radius == 0
-        :return: True if is on the spot
-        """
-        return self.arc.radius == 0
-
-    @classmethod
-    def new_from_move(cls, previous_move, move):
-        return Rotation(previous_move.end, move.start, previous_move.vector, move.vector)
+    def is_moving(self):
+        return self.status is Robot.STATUS_MOVING

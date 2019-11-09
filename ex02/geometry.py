@@ -147,16 +147,6 @@ class Arc:
 
 
     @staticmethod
-    def compute_center_from_start_tangent(start, end, tangent):
-        chord = end - start
-        c = Point((end.x + start.x) / 2, (end.y + start.y) / 2)
-        try:
-            center = Arc.compute_intersection_with_each_tangent(start, c, tangent, chord)
-        except ValueError:
-            center = c
-        return center
-
-    @staticmethod
     def compute_center_from_both_tangents(p0, p1, tangent_p0, tangent_p1):
         try:
             center = Arc.compute_intersection_with_each_tangent(p0, p1, tangent_p0, tangent_p1)

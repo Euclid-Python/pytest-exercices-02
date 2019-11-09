@@ -1,7 +1,7 @@
 import math
 
 from ex02.geometry import Point
-from ex02.robot import Translation, Rotation
+from ex02.motion import Translation, Rotation
 
 
 class TestMove:
@@ -20,6 +20,6 @@ class TestRotation:
         prev_ = Translation(Point(0, 0), Point(10, 0))
         next_ = Translation(Point(10, 10), Point(0, 10))
 
-        rot = Rotation.new_from_move(prev_, next_)
+        rot = Rotation.new_from_translations(prev_, next_)
         assert rot.arc.center == Point(10,5)
         assert rot.arc.radius == 5
