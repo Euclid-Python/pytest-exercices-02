@@ -1,3 +1,4 @@
+import math
 from math import cos, sin, acos, asin, sqrt, isclose, fabs, pi
 
 """"
@@ -69,7 +70,9 @@ class Point:
         return f'p({self.x}, {self.y})'
 
     @staticmethod
-    def distance(a: 'Point', b: 'Point') -> float:
+    def distance(a: 'Point', b: 'Point'= None) -> float:
+        if not b:
+            b = Point(0,0)
         dx = a.x - b.x
         dy = a.y - b.y
         return sqrt(dx * dx + dy * dy)
@@ -143,7 +146,7 @@ class Arc:
         self.direction = Arc.compute_direction(self)
         if self.direction is Arc.INDIRECT:
             self.angle = self.angle - 2*pi
-        self.length = self.angle * pi * self.radius
+        self.length = math.fabs(self.angle * pi * self.radius)
 
 
     @staticmethod
@@ -152,6 +155,8 @@ class Arc:
             center = Arc.compute_intersection_with_each_tangent(p0, p1, tangent_p0, tangent_p1)
         except ValueError:
             center = Point((p1.x + p0.x) / 2, (p1.y + p0.y) / 2)
+
+        assert isclose(Point.distance(p0, center), Point.distance(p1, center))
         return center
 
     @staticmethod
@@ -168,7 +173,10 @@ class Arc:
         radial_p1 = tangent_p1.normal()
         line_p0 = Line(p0, radial_p0)
         line_p1 = Line(p1, radial_p1)
-        return line_p0.intersection(line_p1)
+        center = line_p0.intersection(line_p1)
+        d0 = Point.distance(p0, center)
+        d1 = Point.distance(p1, center)
+        return center
 
     @staticmethod
     def find_angle_and_chord_vector(start, end, tangent):
@@ -208,16 +216,42 @@ class Arc:
 class Geometry:
 
     @staticmethod
-    def rotate_from_axe(vector, axe):
-        axe = axe.normalize()
-        cos_ = axe.x
-        sin_ = -axe.y
-        x = vector.x * cos_ - vector.y * sin_
-        y = vector.x * sin_ + vector.y * cos_
+    def transpose_rotation_relative_to(vector, reference):
+        reference = reference.normalize()
+        cos_ = reference.x
+        sin_ = reference.y
+        x = vector.x * cos_ + vector.y * sin_
+        y = - vector.x * sin_ + vector.y * cos_
         return Point(x, y)
 
     @staticmethod
     def get_symmetrical(vector, axe):
-        symmetrical = Geometry.rotate_from_axe(vector, axe)
+        symmetrical = Geometry.transpose_rotation_relative_to(vector, axe)
         symmetrical = Point(symmetrical.x, -symmetrical.y)
-        return Geometry.rotate_from_axe(symmetrical, Point(axe.x, - axe.y))
+        return Geometry.transpose_rotation_relative_to(symmetrical, Point(axe.x, - axe.y))
+
+
+    @staticmethod
+    def get_tangent_point_from_lines(line0: Line, line1: Line) -> Point:
+        """
+        Finds a point P on line0 such as line defined by P and vector line0.vector
+        could be tangent to a common circle with line1
+        :param line0:
+        :param line1:
+        :return:
+        """
+        bissec_vector = (line0.vector + line1.vector)
+        if Point.distance(bissec_vector) == 0:
+            bissec_vector = line0.vector.normal()
+
+
+        bissec_line = Line(point=line1.point, vector=bissec_vector)
+
+        intersec = line0.intersection(bissec_line)
+
+        return intersec
+
+    @staticmethod
+    def is_beyond_point(candidate, point, vector):
+        return (candidate - point).scalar_product(vector) > 0
+

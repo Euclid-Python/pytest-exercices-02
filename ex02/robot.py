@@ -6,7 +6,7 @@ import inspect
 from typing import List
 
 from ex02.telecom import Command
-from ex02.geometry import Point, Arc
+from ex02.geometry import Point, Arc, Geometry, Line
 
 
 class RobotComponent:
@@ -78,11 +78,12 @@ class Transmitter(RobotComponent, Exchanger):
             return Telecom(command=Command.LOADED_INVALID, errors=[str(e)])
 
     def _on_MOVE(self, tc: Telecom) -> Telecom:
-        if self.robot.is_moving():
-            return Telecom(command=Command.MOVING)
-        # -----------------------------------------
-        # TO BE DEVELOPPED
-        # ------------------------------------------
+        try:
+            self.robot.run()
+            return Telecom(command=Command.MOVED)
+        except Exception as e:
+            return Telecom(command=Command.INVALID, errors=[str(e)])
+
 
 class Wheel:
 
@@ -150,7 +151,7 @@ class MotionController(RobotComponent):
             self._run_rotation_on_center(rotation, wheel_axis, energy_supplier)
 
     def _compute_step_param(self, length):
-        duration = length / self.speed
+        duration = math.fabs(length) / self.speed
         steps = math.floor(duration / self.time_step)
         length_step = length / steps
         return steps, length_step, duration
@@ -181,7 +182,7 @@ class MotionController(RobotComponent):
         big_radius = (radius + wheel_axis / 2)
         sho_radius = (radius - wheel_axis / 2)
 
-        big_length = big_radius * angle
+        big_length = math.fabs(big_radius * angle)
 
         ratio = sho_radius / big_radius
 
@@ -205,6 +206,7 @@ class MotionController(RobotComponent):
 
     def get_required_energy_for(self, length: float):
         return self.consumption_per_length_unit * length
+
 
 
 class Navigator(RobotComponent):
@@ -254,6 +256,51 @@ class Arranger:
             previous_move = move
             new_motions.append(move)
         return new_motions
+
+class CurveArranger(Arranger):
+
+    def arrange(self, motions: List) -> List:
+        size = len(motions)
+
+        if size < 3:
+            return super().arrange()
+
+        new_motions = [i for i in motions]
+        previous_move = None
+
+        idx = 0
+        while idx < len(new_motions):
+            next_ = prev_ = None
+            current = new_motions[idx]
+            if idx-1 >= 0:
+                prev_ = new_motions[idx-1]
+            if idx+1 < len(new_motions):
+                next_ = new_motions[idx+1]
+
+            if prev_ and next_ and isinstance(prev_, Translation) and isinstance(next_, Translation):
+
+                if not prev_.is_parallel_with(current) and not next_.is_parallel_with(current):
+                    line0 = Line(prev_.end, prev_.vector)
+                    line1 = Line(next_.start, next_.vector)
+                    another_point = Geometry.get_tangent_point_from_lines(line0, line1)
+                    if Geometry.is_beyond_point(another_point,prev_.end, prev_.vector):
+                        new_motions.insert(idx, Translation(prev_.end, another_point))
+                        idx += 1
+                        rot = Rotation(another_point, next_.start, prev_.vector, next_.vector)
+                        new_motions[idx] = rot
+                    else :
+                        rot = Rotation.new_from_translations(prev_, current)
+                        new_motions.insert(idx, rot)
+            elif prev_ is not None and isinstance(prev_, Translation):
+                rot = Rotation.new_from_translations(prev_, current)
+                new_motions.insert(idx, rot)
+
+            idx += 1
+
+        return new_motions
+
+
+
 
 
 class Robot(Exchanger):

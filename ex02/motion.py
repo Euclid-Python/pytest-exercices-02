@@ -18,6 +18,9 @@ class Translation:
     def is_parallel_with(self, other: 'Translation'):
         return self.vector.is_collinear(other.vector)
 
+    def __repr__(self):
+        return f'start={self.start}, end={self.end}, len={self.length}, vector={self.vector}'
+
 
 class Rotation:
 
@@ -37,3 +40,8 @@ class Rotation:
     @classmethod
     def new_from_translations(cls, previous_move, move):
         return Rotation(previous_move.end, move.start, previous_move.vector, move.vector)
+
+    def __repr__(self):
+        return f'start={self.arc.start}, end={self.arc.end}, radius={self.arc.radius}, ' \
+               f'start_vector={self.arc.start_tangent},' \
+               f'end_vector={self.arc.end_tangent}'
